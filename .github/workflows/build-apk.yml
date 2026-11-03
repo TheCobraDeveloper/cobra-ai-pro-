@@ -6,6 +6,7 @@ on:
   push:
     paths:
       - ".github/workflows/build-apk.yml"
+      - "IMG-20261103-WA6712.jpg"
 
 jobs:
   build:
@@ -16,7 +17,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
@@ -26,11 +27,39 @@ jobs:
         with:
           gradle-version: "8.9"
 
+      - name: Install image tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+
       - name: Create Android project
         shell: bash
         run: |
           mkdir -p app/src/main/java/com/muhajirhackers/cobraaipro
           mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/drawable
+          mkdir -p app/src/main/res/mipmap-hdpi
+          mkdir -p app/src/main/res/mipmap-mdpi
+          mkdir -p app/src/main/res/mipmap-xhdpi
+          mkdir -p app/src/main/res/mipmap-xxhdpi
+          mkdir -p app/src/main/res/mipmap-xxxhdpi
+
+          if [ ! -f IMG-20261103-WA6712.jpg ]; then
+            echo "ERROR: Please upload IMG-20261103-WA6712.jpg to the repository root."
+            exit 1
+          fi
+
+          convert IMG-20261103-WA6712.jpg \
+            -resize 512x512^ -gravity center -extent 512x512 \
+            app/src/main/res/drawable/cobra_logo.jpg
+
+          for spec in "mdpi:48" "hdpi:72" "xhdpi:96" "xxhdpi:144" "xxxhdpi:192"; do
+            density="${spec%%:*}"
+            size="${spec##*:}"
+            convert IMG-20261103-WA6712.jpg \
+              -resize "${size}x${size}^" -gravity center -extent "${size}x${size}" \
+              "app/src/main/res/mipmap-${density}/ic_launcher.png"
+          done
 
           cat > settings.gradle <<'EOF'
           pluginManagement {
@@ -75,8 +104,8 @@ jobs:
                   applicationId 'com.muhajirhackers.cobraaipro'
                   minSdk 23
                   targetSdk 35
-                  versionCode 1
-                  versionName '1.0'
+                  versionCode 2
+                  versionName '2.0'
               }
           }
           EOF
@@ -86,10 +115,10 @@ jobs:
               <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
                   <item name="android:fontFamily">sans</item>
                   <item name="android:colorAccent">#D4AF37</item>
-                  <item name="android:statusBarColor">#080808</item>
-                  <item name="android:navigationBarColor">#080808</item>
+                  <item name="android:statusBarColor">#050505</item>
+                  <item name="android:navigationBarColor">#050505</item>
                   <item name="android:windowLightStatusBar">false</item>
-                  <item name="android:windowBackground">#080808</item>
+                  <item name="android:windowBackground">#050505</item>
               </style>
           </resources>
           EOF
@@ -100,6 +129,8 @@ jobs:
               <application
                   android:theme="@style/AppTheme"
                   android:label="COBRA AI PRO"
+                  android:icon="@mipmap/ic_launcher"
+                  android:roundIcon="@mipmap/ic_launcher"
                   android:usesCleartextTraffic="false">
                   <activity
                       android:name=".MainActivity"
@@ -120,13 +151,16 @@ jobs:
           import android.os.Bundle;
           import android.os.Handler;
           import android.graphics.Color;
+          import android.graphics.Typeface;
           import android.view.Gravity;
-          import android.view.View;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
           import android.webkit.WebSettings;
           import android.widget.LinearLayout;
           import android.widget.TextView;
+          import android.widget.ImageView;
+          import android.widget.FrameLayout;
+          import android.graphics.drawable.GradientDrawable;
 
           public class MainActivity extends Activity {
 
@@ -139,37 +173,69 @@ jobs:
                   getWindow().setStatusBarColor(Color.BLACK);
                   getWindow().setNavigationBarColor(Color.BLACK);
 
-                  LinearLayout splash = new LinearLayout(this);
-                  splash.setOrientation(LinearLayout.VERTICAL);
-                  splash.setGravity(Gravity.CENTER);
-                  splash.setBackgroundColor(Color.rgb(5,5,5));
+                  showWelcome();
 
-                  TextView logo = new TextView(this);
-                  logo.setText("🐍");
-                  logo.setTextSize(75);
-                  logo.setGravity(Gravity.CENTER);
+                  new Handler().postDelayed(() -> openWebsite(), 2500);
+              }
+
+              void showWelcome() {
+                  LinearLayout layout = new LinearLayout(this);
+                  layout.setOrientation(LinearLayout.VERTICAL);
+                  layout.setGravity(Gravity.CENTER);
+                  layout.setPadding(24, 35, 24, 35);
+                  layout.setBackgroundColor(Color.rgb(5,5,5));
+
+                  GradientDrawable border = new GradientDrawable();
+                  border.setColor(Color.rgb(5,5,5));
+                  border.setStroke(3, Color.rgb(212,175,55));
+                  border.setCornerRadius(28);
+
+                  FrameLayout logoFrame = new FrameLayout(this);
+                  logoFrame.setBackground(border);
+                  logoFrame.setPadding(5,5,5,5);
+
+                  ImageView logo = new ImageView(this);
+                  logo.setImageResource(R.drawable.cobra_logo);
+                  logo.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                  logoFrame.addView(logo, new FrameLayout.LayoutParams(240,240));
+
+                  layout.addView(logoFrame);
 
                   TextView title = new TextView(this);
                   title.setText("COBRA AI PRO");
-                  title.setTextSize(30);
-                  title.setTextColor(Color.rgb(212,175,55));
+                  title.setTextSize(32);
+                  title.setTextColor(Color.rgb(255,205,65));
+                  title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
                   title.setGravity(Gravity.CENTER);
-                  title.setTypeface(null, 1);
+                  title.setPadding(0,25,0,8);
+                  layout.addView(title);
 
-                  TextView admin = new TextView(this);
-                  admin.setText("AQIB JAVED\nADMIN\n\nCREATED BY AQIB JAVED");
-                  admin.setTextSize(16);
-                  admin.setTextColor(Color.WHITE);
-                  admin.setGravity(Gravity.CENTER);
-                  admin.setPadding(0,25,0,0);
+                  TextView subtitle = new TextView(this);
+                  subtitle.setText("NEXT GENERATION ARTIFICIAL INTELLIGENCE");
+                  subtitle.setTextSize(11);
+                  subtitle.setTextColor(Color.LTGRAY);
+                  subtitle.setGravity(Gravity.CENTER);
+                  layout.addView(subtitle);
 
-                  splash.addView(logo);
-                  splash.addView(title);
-                  splash.addView(admin);
+                  TextView founder = new TextView(this);
+                  founder.setText("FOUNDER & ADMIN\nAQIB JAVED\nS/O MUHAMMAD YASEEN");
+                  founder.setTextSize(17);
+                  founder.setLineSpacing(8,1);
+                  founder.setTextColor(Color.WHITE);
+                  founder.setGravity(Gravity.CENTER);
+                  founder.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+                  founder.setPadding(0,35,0,0);
+                  layout.addView(founder);
 
-                  setContentView(splash);
+                  TextView footer = new TextView(this);
+                  footer.setText("POWERED BY COBRA AI TECHNOLOGY");
+                  footer.setTextSize(10);
+                  footer.setTextColor(Color.rgb(212,175,55));
+                  footer.setGravity(Gravity.CENTER);
+                  footer.setPadding(0,35,0,0);
+                  layout.addView(footer);
 
-                  new Handler().postDelayed(() -> openWebsite(), 2500);
+                  setContentView(layout);
               }
 
               void openWebsite() {
@@ -204,6 +270,5 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: COBRA-AI-PRO-APK
+          name: COBRA-AI-PRO-V2-APK
           path: app/build/outputs/apk/debug/app-debug.apk
-          
