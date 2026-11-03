@@ -1,1 +1,209 @@
 
+name: Build COBRA AI PRO APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/build-apk.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Create Android project
+        shell: bash
+        run: |
+          mkdir -p app/src/main/java/com/muhajirhackers/cobraaipro
+          mkdir -p app/src/main/res/values
+
+          cat > settings.gradle <<'EOF'
+          pluginManagement {
+              repositories {
+                  google()
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          rootProject.name = "COBRA-AI-PRO"
+          include(":app")
+          EOF
+
+          cat > build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application' version '8.7.3' apply false
+          }
+          EOF
+
+          cat > gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          android.useAndroidX=true
+          EOF
+
+          cat > app/build.gradle <<'EOF'
+          plugins {
+              id 'com.android.application'
+          }
+
+          android {
+              namespace 'com.muhajirhackers.cobraaipro'
+              compileSdk 35
+
+              defaultConfig {
+                  applicationId 'com.muhajirhackers.cobraaipro'
+                  minSdk 23
+                  targetSdk 35
+                  versionCode 1
+                  versionName '1.0'
+              }
+          }
+          EOF
+
+          cat > app/src/main/res/values/styles.xml <<'EOF'
+          <resources>
+              <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+                  <item name="android:fontFamily">sans</item>
+                  <item name="android:colorAccent">#D4AF37</item>
+                  <item name="android:statusBarColor">#080808</item>
+                  <item name="android:navigationBarColor">#080808</item>
+                  <item name="android:windowLightStatusBar">false</item>
+                  <item name="android:windowBackground">#080808</item>
+              </style>
+          </resources>
+          EOF
+
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <application
+                  android:theme="@style/AppTheme"
+                  android:label="COBRA AI PRO"
+                  android:usesCleartextTraffic="false">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/java/com/muhajirhackers/cobraaipro/MainActivity.java <<'EOF'
+          package com.muhajirhackers.cobraaipro;
+
+          import android.app.Activity;
+          import android.os.Bundle;
+          import android.os.Handler;
+          import android.graphics.Color;
+          import android.view.Gravity;
+          import android.view.View;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.webkit.WebSettings;
+          import android.widget.LinearLayout;
+          import android.widget.TextView;
+
+          public class MainActivity extends Activity {
+
+              WebView webView;
+
+              @Override
+              public void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+
+                  getWindow().setStatusBarColor(Color.BLACK);
+                  getWindow().setNavigationBarColor(Color.BLACK);
+
+                  LinearLayout splash = new LinearLayout(this);
+                  splash.setOrientation(LinearLayout.VERTICAL);
+                  splash.setGravity(Gravity.CENTER);
+                  splash.setBackgroundColor(Color.rgb(5,5,5));
+
+                  TextView logo = new TextView(this);
+                  logo.setText("🐍");
+                  logo.setTextSize(75);
+                  logo.setGravity(Gravity.CENTER);
+
+                  TextView title = new TextView(this);
+                  title.setText("COBRA AI PRO");
+                  title.setTextSize(30);
+                  title.setTextColor(Color.rgb(212,175,55));
+                  title.setGravity(Gravity.CENTER);
+                  title.setTypeface(null, 1);
+
+                  TextView admin = new TextView(this);
+                  admin.setText("AQIB JAVED\nADMIN\n\nCREATED BY AQIB JAVED");
+                  admin.setTextSize(16);
+                  admin.setTextColor(Color.WHITE);
+                  admin.setGravity(Gravity.CENTER);
+                  admin.setPadding(0,25,0,0);
+
+                  splash.addView(logo);
+                  splash.addView(title);
+                  splash.addView(admin);
+
+                  setContentView(splash);
+
+                  new Handler().postDelayed(() -> openWebsite(), 2500);
+              }
+
+              void openWebsite() {
+                  webView = new WebView(this);
+                  webView.setBackgroundColor(Color.BLACK);
+
+                  WebSettings settings = webView.getSettings();
+                  settings.setJavaScriptEnabled(true);
+                  settings.setDomStorageEnabled(true);
+                  settings.setMediaPlaybackRequiresUserGesture(false);
+
+                  webView.setWebViewClient(new WebViewClient());
+                  webView.loadUrl("https://cobra-ai.muhajirhackers.workers.dev/");
+
+                  setContentView(webView);
+              }
+
+              @Override
+              public void onBackPressed() {
+                  if (webView != null && webView.canGoBack()) {
+                      webView.goBack();
+                  } else {
+                      super.onBackPressed();
+                  }
+              }
+          }
+          EOF
+
+      - name: Build APK
+        run: gradle --no-daemon assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: COBRA-AI-PRO-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          
